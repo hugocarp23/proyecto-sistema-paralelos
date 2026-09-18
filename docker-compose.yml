@@ -1,0 +1,55 @@
+services:
+  eventhub-db:
+    image: postgres:16-alpine
+    container_name: eventhub-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: eventhub_user
+      POSTGRES_PASSWORD: eventhub_password
+      POSTGRES_DB: eventhub_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - eventhub_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eventhub_user -d eventhub_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  eventhub-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: eventhub-backend
+    restart: unless-stopped
+    environment:
+      PORT: 5000
+      NODE_ENV: production
+      DATABASE_URL: postgresql://eventhub_user:eventhub_password@eventhub-db:5432/eventhub_db?schema=public
+      JWT_SECRET: eventhub_jwt_super_secret_key_2026
+      JWT_EXPIRES_IN: 7d
+      FRONTEND_URL: http://localhost:5173
+    ports:
+      - "5000:5000"
+    depends_on:
+      eventhub-db:
+        condition: service_healthy
+    command: >
+      sh -c "npx prisma migrate deploy &&
+             npx prisma db seed &&
+             node dist/server.js"
+
+  eventhub-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: eventhub-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - eventhub-backend
+
+volumes:
+  eventhub_pgdata:

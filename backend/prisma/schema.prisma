@@ -1,0 +1,153 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum EventStatus {
+  BORRADOR
+  PUBLICADO
+  FINALIZADO
+  CANCELADO
+}
+
+enum TicketStatus {
+  ACTIVA
+  UTILIZADA
+  CANCELADA
+}
+
+enum PurchaseStatus {
+  PENDIENTE
+  COMPLETADA
+  CANCELADA
+}
+
+model Role {
+  id    Int    @id @default(autoincrement())
+  name  String @unique @db.VarChar(50)
+  users User[]
+
+  @@map("roles")
+}
+
+model User {
+  id                   Int                  @id @default(autoincrement())
+  firstName            String               @map("first_name") @db.VarChar(100)
+  lastName             String               @map("last_name") @db.VarChar(100)
+  email                String               @unique @db.VarChar(150)
+  password             String               @db.VarChar(255)
+  roleId               Int                  @map("role_id")
+  active               Boolean              @default(true)
+  createdAt            DateTime             @default(now()) @map("created_at")
+  updatedAt            DateTime             @updatedAt @map("updated_at")
+
+  role                 Role                 @relation(fields: [roleId], references: [id])
+  events               Event[]              @relation("OrganizerEvents")
+  purchases            Purchase[]
+  tickets              Ticket[]
+  validatedAttendances Attendance[]         @relation("ValidatorAttendances")
+  passwordResetTokens  PasswordResetToken[]
+
+  @@map("users")
+}
+
+model Category {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(100)
+  description String?  @db.VarChar(255)
+  icon        String?  @db.VarChar(50)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  events      Event[]
+
+  @@map("categories")
+}
+
+model Event {
+  id               Int         @id @default(autoincrement())
+  title            String      @db.VarChar(200)
+  description      String      @db.Text
+  image            String?     @db.VarChar(500)
+  date             DateTime
+  time             String      @db.VarChar(20)
+  location         String      @db.VarChar(150)
+  address          String      @db.VarChar(255)
+  price            Float       @default(0.0)
+  capacity         Int
+  availableTickets Int         @map("available_tickets")
+  status           EventStatus @default(PUBLICADO)
+  organizerId      Int         @map("organizer_id")
+  categoryId       Int         @map("category_id")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+
+  organizer        User        @relation("OrganizerEvents", fields: [organizerId], references: [id])
+  category         Category    @relation(fields: [categoryId], references: [id])
+  tickets          Ticket[]
+
+  @@map("events")
+}
+
+model Purchase {
+  id        Int            @id @default(autoincrement())
+  userId    Int            @map("user_id")
+  total     Float
+  status    PurchaseStatus @default(COMPLETADA)
+  createdAt DateTime       @default(now()) @map("created_at")
+
+  user      User           @relation(fields: [userId], references: [id])
+  tickets   Ticket[]
+
+  @@map("purchases")
+}
+
+model Ticket {
+  id           Int          @id @default(autoincrement())
+  purchaseId   Int          @map("purchase_id")
+  eventId      Int          @map("event_id")
+  userId       Int          @map("user_id")
+  qrToken      String       @unique @map("qr_token") @db.VarChar(150)
+  ticketNumber String       @unique @map("ticket_number") @db.VarChar(50)
+  status       TicketStatus @default(ACTIVA)
+  usedAt       DateTime?    @map("used_at")
+  createdAt    DateTime     @default(now()) @map("created_at")
+
+  purchase     Purchase     @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  event        Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attendance   Attendance?
+
+  @@map("tickets")
+}
+
+model Attendance {
+  id          Int      @id @default(autoincrement())
+  ticketId    Int      @unique @map("ticket_id")
+  validatedBy Int      @map("validated_by")
+  validatedAt DateTime @default(now()) @map("validated_at")
+  notes       String?  @db.VarChar(255)
+
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  validator   User     @relation("ValidatorAttendances", fields: [validatedBy], references: [id])
+
+  @@map("attendances")
+}
+
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  token     String   @unique @db.VarChar(255)
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
+}

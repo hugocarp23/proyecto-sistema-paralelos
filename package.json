@@ -1,0 +1,15 @@
+{
+  "name": "eventhub-monorepo",
+  "version": "1.0.0",
+  "description": "EventHub - Plataforma integral de gestión, venta de entradas y control de asistencia con código QR",
+  "scripts": {
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build:backend": "npm --prefix backend run build",
+    "build:frontend": "npm --prefix frontend run build",
+    "build": "npm run build:backend && npm run build:frontend"
+  },
+  "keywords": ["eventhub", "events", "tickets", "qr", "attendance", "react", "express", "prisma"],
+  "author": "EventHub Team",
+  "license": "MIT"
+}
